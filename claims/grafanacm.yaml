@@ -1,0 +1,6 @@
+apiVersion: cloudnativeday.org/v1alpha1
+kind: grafanacm
+metadata:
+  name: grafana-dynamic-configmap
+spec:
+  name: grafana-cm

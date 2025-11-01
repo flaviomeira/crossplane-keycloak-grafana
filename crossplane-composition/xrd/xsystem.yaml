@@ -1,0 +1,35 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xsystems.cloudnativeday.org
+spec:
+  group: cloudnativeday.org
+  names:
+    kind: xsystem
+    plural: xsystems
+  
+  claimNames:
+    kind: system
+    plural: systems
+  
+  versions:
+  - name: v1alpha1
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              name:
+                type: string
+              members:
+                type: array
+                items:
+                  type: string
+            required:
+            - name
+            - members
+            

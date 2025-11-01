@@ -1,0 +1,114 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: xsystem
+spec:
+  compositeTypeRef:
+    apiVersion: cloudnativeday.org/v1alpha1
+    kind: xsystem
+  mode: Pipeline
+  pipeline:
+  - step: render-templates
+    functionRef:
+      name: crossplane-contrib-function-go-templating
+    input:
+      apiVersion: gotemplating.fn.crossplane.io/v1beta1
+      kind: GoTemplate
+      source: Inline
+      inline:
+        template: |
+          {{- $params := .observed.composite.resource.spec }}
+          {{- $realmId := "grafana-oauth-realm" }}          
+
+          apiVersion: oss.grafana.crossplane.io/v1alpha1
+          kind: Organization
+          metadata:
+            annotations:
+              gotemplating.fn.crossplane.io/composition-resource-name: org
+          spec:
+            providerConfigRef:
+              name: grafana-cloud-instance-provider
+            managementPolicies:
+            - Create
+            - Observe
+            - Delete
+            forProvider:
+              name: {{ $params.name }}          
+          ---
+          apiVersion: group.keycloak.crossplane.io/v1alpha1
+          kind: Group                    
+          metadata:
+            annotations:
+              gotemplating.fn.crossplane.io/composition-resource-name: group              
+          spec:
+            providerConfigRef:
+              name: keycloak-provider-config
+            managementPolicies:
+            - Create
+            - Update
+            - Observe
+            - Delete
+            forProvider:
+              name: {{ $params.name }}
+              realmId: {{ $realmId }}
+              
+          {{- range $params.members }}
+          ---
+          {{ $keycloakNormalizedUser := split "@" . }}
+          {{ $keycloakNormalizedUser = $keycloakNormalizedUser._0 }}
+          {{ $keycloakprovideruser := (printf "%s-%s" $params.name $keycloakNormalizedUser) }}          
+          apiVersion: user.keycloak.crossplane.io/v1alpha1
+          kind: User
+          metadata:
+            annotations:
+              gotemplating.fn.crossplane.io/composition-resource-name: {{ $keycloakprovideruser }}              
+          spec:
+            providerConfigRef:
+              name: keycloak-provider-config
+            managementPolicies:
+            - Create
+            - Update
+            - Observe
+            - Delete
+            forProvider:
+              username: {{ . }}
+              email: {{ . }}
+              emailVerified: true
+              realmId: {{ $realmId }}
+          ---
+          {{- end }}
+          apiVersion: realm.keycloak.crossplane.io/v1alpha1
+          kind: Realm
+          metadata:
+            annotations:
+              gotemplating.fn.crossplane.io/composition-resource-name: keycloak-realm-{{ $realmId }}
+          spec:
+            providerConfigRef:
+              name: keycloak-provider-config
+            managementPolicies:
+            - Observe
+            forProvider:
+              realm: {{ $realmId }}
+          ---          
+          apiVersion: group.keycloak.crossplane.io/v1alpha1
+          kind: Memberships
+          metadata:
+            annotations:
+              gotemplating.fn.crossplane.io/composition-resource-name: keycloakmembership
+              
+          spec:
+            providerConfigRef:
+              name: keycloak-provider-config
+            managementPolicies:
+            - Create
+            - Update
+            - Observe
+            - Delete
+            forProvider:
+              groupId: {{ $.observed.resources.group.resource.status.atProvider.id }}
+              members: {{ $params.members | toYaml | nindent 7 }}
+              realmId: {{ $realmId }}          
+          ---
+  - step: automatically-detect-ready-composed-resources
+    functionRef:
+      name: crossplane-contrib-function-auto-ready

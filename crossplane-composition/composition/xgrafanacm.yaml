@@ -1,0 +1,87 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: xgrafanacm
+spec:
+  compositeTypeRef:
+    apiVersion: cloudnativeday.org/v1alpha1
+    kind: xgrafanacm
+  mode: Pipeline
+  pipeline:
+  - step: render-templates
+    functionRef:
+      name: crossplane-contrib-function-go-templating
+    input:
+      apiVersion: gotemplating.fn.crossplane.io/v1beta1
+      kind: GoTemplate
+      source: Inline
+      inline:
+        template: |
+          {{ $formattedOrgs := list }}
+          apiVersion: meta.gotemplating.fn.crossplane.io/v1alpha1
+          kind: ExtraResources
+          requirements:
+            orgs:
+              apiVersion: oss.grafana.crossplane.io/v1alpha1
+              kind: Organization
+          {{- with .extraResources }}    
+          {{- $orgs := index . "orgs" }}
+          {{- range $i, $org := $orgs.items }}
+          {{- $formattedOrgs = append $formattedOrgs (printf `"%s:%s:Editor"` $org.resource.status.atProvider.name $org.resource.status.atProvider.name) }}
+          {{- end }}
+          {{- end }}
+          ---
+          apiVersion: kubernetes.crossplane.io/v1alpha2
+          kind: Object
+          metadata:
+            annotations:
+              gotemplating.fn.crossplane.io/composition-resource-name: grafana
+            name: grafana
+          spec:
+            managementPolicies:
+            - Observe
+            - Update
+            forProvider:
+              manifest:
+                apiVersion: v1
+                data:
+                  grafana.ini: |
+                    [analytics]
+                    check_for_updates = true
+                    [grafana_net]
+                    url = https://grafana.net
+                    [log]
+                    level = debug
+                    mode = console
+                    [paths]
+                    data = /var/lib/grafana/
+                    logs = /var/log/grafana
+                    plugins = /var/lib/grafana/plugins
+                    provisioning = /etc/grafana/provisioning
+                    [server]
+                    domain = ''
+                    [auth.generic_oauth]
+                    enabled = true
+                    name = Keycloak-OAuth
+                    allow_sign_up = true
+                    client_id = grafana-oauth
+                    client_secret = AziPY182s39fPY6JSnzdmqylWSDWNadv
+                    scopes = openid email profile offline_access roles
+                    email_attribute_path = email
+                    login_attribute_path = username
+                    name_attribute_path = full_name
+                    auth_url = http://localhost:8080/realms/grafana-oauth-realm/protocol/openid-connect/auth
+                    token_url = http://keycloak.keycloak/realms/grafana-oauth-realm/protocol/openid-connect/token
+                    api_url = http://keycloak.keycloak/realms/grafana-oauth-realm/protocol/openid-connect/userinfo
+                    role_attribute_path = contains(roles[*], 'grafanaadmin') && 'GrafanaAdmin' || contains(roles[*], 'admin') && 'Admin' || contains(roles[*], 'editor') && 'Editor' || 'Editor'
+                    org_attribute_path: groups
+                    org_mapping: {{ $formattedOrgs | sortAlpha | join " " | squote }}
+                kind: ConfigMap
+                metadata:
+                  namespace: monitoring
+            providerConfigRef:
+              name: kubernetes-provider
+
+  - step: automatically-detect-ready-composed-resources
+    functionRef:
+      name: crossplane-contrib-function-auto-ready

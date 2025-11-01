@@ -1,0 +1,10 @@
+apiVersion: cloudnativeday.org/v1alpha1
+kind: system
+metadata:
+  name: cloudnativeday-cps-system
+spec:
+  name: cloudnativeday-cps
+  members: 
+  - "user1@cloudnativeday-cps.com"
+  - "user2@cloudnativeday-cps.com"
+  - "user3@cloudnativeday-cps.com"
