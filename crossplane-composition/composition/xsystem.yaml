@@ -50,8 +50,7 @@ spec:
             - Delete
             forProvider:
               name: {{ $params.name }}
-              realmId: {{ $realmId }}
-              
+              realmId: {{ $realmId }}              
           {{- range $params.members }}
           ---
           {{ $keycloakNormalizedUser := split "@" . }}
@@ -76,20 +75,6 @@ spec:
               emailVerified: true
               realmId: {{ $realmId }}
           ---
-          {{- end }}
-          apiVersion: realm.keycloak.crossplane.io/v1alpha1
-          kind: Realm
-          metadata:
-            annotations:
-              gotemplating.fn.crossplane.io/composition-resource-name: keycloak-realm-{{ $realmId }}
-          spec:
-            providerConfigRef:
-              name: keycloak-provider-config
-            managementPolicies:
-            - Observe
-            forProvider:
-              realm: {{ $realmId }}
-          ---          
           apiVersion: group.keycloak.crossplane.io/v1alpha1
           kind: Memberships
           metadata:
