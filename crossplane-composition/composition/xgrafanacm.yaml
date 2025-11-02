@@ -65,7 +65,7 @@ spec:
                     name = Keycloak-OAuth
                     allow_sign_up = true
                     client_id = grafana-oauth
-                    client_secret = AziPY182s39fPY6JSnzdmqylWSDWNadv
+                    client_secret = SENHA-DO-CLIENT-KEYCLOAK
                     scopes = openid email profile offline_access roles
                     email_attribute_path = email
                     login_attribute_path = username
